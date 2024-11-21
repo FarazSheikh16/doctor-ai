@@ -2,28 +2,73 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import pandas as pd
+from typing import Dict, List, Union, Optional
+import json
+from src.constants import API_URL
 
 class WikipediaPageProcessor:
-    WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
+    """Process Wikipedia pages to extract structured content and metadata."""
     
-    # Define the fields we want to extract and their possible variations in the infobox
-    DESIRED_FIELDS = {
-        'synonyms': ['synonyms', 'other_names', 'alias'],
-        'symptoms': ['symptoms', 'symptom', 'signs_symptoms', 'signs_and_symptoms']
-    }
-
-    def __init__(self, page_title):
+    def __init__(self, page_title: str):
+        """
+        Initialize the Wikipedia page processor.
+        
+        Args:
+            page_title (str): Title of the Wikipedia page to process
+        """
         self.page_title = page_title
-        self.wikitext = None
-        self.soup = None
-        self.metadata = {}
-        self.chunks = []
+        self.wikitext: Optional[str] = None
+        self.soup: Optional[BeautifulSoup] = None
+        self.metadata: Dict = {}
+        self.chunks: List[Dict] = []
 
+    def _clean_text(self, text: str) -> str:
+        """
+        Clean text by removing wiki markup, references, and other unwanted elements.
+        
+        Args:
+            text (str): Raw text to clean
+            
+        Returns:
+            str: Cleaned text
+        """
+        if not text:
+            return ""
+        
+        # Remove references
+        text = re.sub(r'<ref.*?</ref>', '', text, flags=re.DOTALL)
+        
+        # Remove HTML comments
+        text = re.sub(r'<!--.*?-->', '', text)
+        
+        # Extract text from wiki links [[link|text]] -> text or [[text]] -> text
+        text = re.sub(r'\[\[(?:[^|\]]*\|)?([^\]]+)\]\]', r'\1', text)
+        
+        # Remove templates
+        text = re.sub(r'\{\{.*?\}\}', '', text, flags=re.DOTALL)
+        
+        # Remove file references
+        text = re.sub(r'\[\[File:.*?\]\]', '', text, flags=re.DOTALL)
+        
+        # Remove numbered references [1], [2], etc.
+        text = re.sub(r'\[\d+\]', '', text)
+        
+        # Remove HTML tags
+        text = re.sub(r'<[^>]+>', '', text)
+        
+        # Remove bold/italic markers
+        text = re.sub(r"'{2,}", '', text)
+        
+        # Remove list markers
+        text = re.sub(r'^\s*[\*\#]\s*', '', text, flags=re.MULTILINE)
+        
+        # Remove extra whitespace
+        text = re.sub(r'\s+', ' ', text.strip())
+        
+        return text
 
-    def fetch_wikitext(self):
-        """
-        Fetch the wikitext of the Wikipedia page using MediaWiki API.
-        """
+    def fetch_wikitext(self) -> None:
+        """Fetch the wikitext content of the Wikipedia page using MediaWiki API."""
         params = {
             "action": "query",
             "format": "json",
@@ -32,124 +77,97 @@ class WikipediaPageProcessor:
             "rvslots": "main",
             "rvprop": "content"
         }
-        response = requests.get(self.WIKIPEDIA_API_URL, params=params)
+        
+        response = requests.get(API_URL, params=params)
         response.raise_for_status()
+        
         data = response.json()
         pages = data["query"]["pages"]
         self.wikitext = next(iter(pages.values()))["revisions"][0]["slots"]["main"]["*"]
-        # Parse infobox right after fetching wikitext
-        self.parse_infobox()
+        # self._parse_infobox()
 
-    def clean_wikitext(self):
-        """
-        Clean the wikitext by removing unwanted elements like references, templates, and images.
-        """
-        # Store infobox before cleaning
-        infobox_match = re.search(r"\{\{Infobox.*?\}\}", self.wikitext, flags=re.DOTALL)
-        infobox_text = infobox_match.group() if infobox_match else ""
-        
-        # Clean the wikitext
-        self.wikitext = re.sub(r"<ref.*?>.*?</ref>", "", self.wikitext, flags=re.DOTALL)
-        self.wikitext = re.sub(r"\{\{(?!Infobox).*?\}\}", "", self.wikitext, flags=re.DOTALL)  # Remove templates except Infobox
-        self.wikitext = re.sub(r"\[\[File:.*?\]\]", "", self.wikitext, flags=re.DOTALL)
-        self.wikitext = re.sub(r"\[\d+\]", "", self.wikitext)
-        self.wikitext = re.sub(r"<.*?>", "", self.wikitext)
-        
-        # Restore infobox if it existed
-        if infobox_text:
-            self.wikitext = infobox_text + "\n" + self.wikitext
-
-    def clean_wiki_value(self, value):
-        """
-        Clean wiki markup from a value string.
-        """
-        if not value:
-            return ""
-            
-        # Remove HTML comments
-        value = re.sub(r'<!--.*?-->', '', value)
-        
-        # Remove reference tags
-        value = re.sub(r'<ref.*?</ref>', '', value, flags=re.DOTALL)
-        
-        # Extract text from wiki links [[link|text]] -> text or [[text]] -> text
-        value = re.sub(r'\[\[(?:[^|\]]*\|)?([^\]]+)\]\]', r'\1', value)
-        
-        # Remove bold/italic markers
-        value = re.sub(r"'{2,}", '', value)
-        
-        # Remove templates {{...}}
-        value = re.sub(r'\{\{[^\}]*\}\}', '', value)
-        
-        # Remove HTML tags
-        value = re.sub(r'<[^>]+>', '', value)
-        
-        # Remove bulleted lists markers
-        value = re.sub(r'^\s*[\*\#]\s*', '', value, flags=re.MULTILINE)
-        
-        # Remove extra whitespace
-        value = re.sub(r'\s+', ' ', value.strip())
-        
-        # Split on commas if it's a list-like value (for synonyms)
-        if any(field in self.DESIRED_FIELDS['synonyms'] for field in self.DESIRED_FIELDS['synonyms']):
-            value = [item.strip() for item in value.split(',') if item.strip()]
-            
-        return value
-
-
-    def parse_infobox(self):
-        """
-        Parse specific metadata fields from the infobox.
-        """
+    def clean_wikitext(self) -> None:
+        """Clean the wikitext by removing unwanted elements."""
         if not self.wikitext:
             return
-            
-        infobox_match = re.search(r"\{\{Infobox.*?\}\}", self.wikitext, flags=re.DOTALL)
-        if infobox_match:
-            infobox_text = infobox_match.group()
-            raw_metadata = self.extract_metadata_from_infobox(infobox_text)
-            
-            # Initialize desired fields
-            cleaned_metadata = {
-                'synonyms': [],
-                'symptoms': ''
-            }
-            
-            # Process each desired field
-            for target_field, possible_keys in self.DESIRED_FIELDS.items():
-                for key in possible_keys:
-                    if key in raw_metadata:
-                        value = self.clean_wiki_value(raw_metadata[key])
-                        if value:
-                            cleaned_metadata[target_field] = value
-                            break
-            
-            self.metadata = {k: v for k, v in cleaned_metadata.items() if v}  # Remove empty fields
-        else:
-            self.metadata = {}
+        # Clean the main text
+        self.wikitext = self._clean_text(self.wikitext)
+        
 
-    @staticmethod
-    def extract_metadata_from_infobox(infobox_text):
+    def _clean_wiki_value(self, value: str, field_type: str) -> Union[str, List[str]]:
         """
-        Extract key-value metadata from the infobox.
+        Clean wiki value and format based on field type.
+        
+        Args:
+            value (str): Raw wiki value to clean
+            field_type (str): Type of field being cleaned ('synonyms' or 'symptoms')
+                
+        Returns:
+            Union[str, List[str]]: Cleaned value, either as string or list for synonyms
         """
-        metadata = {}
-        lines = infobox_text.splitlines()
-        for line in lines:
-            match = re.match(r"\|\s*(.*?)\s*=\s*(.*)", line)
-            if match:
-                key, value = match.groups()
-                key = key.strip().lower()  # Normalize keys to lowercase
-                value = value.strip()
-                if key and value:
-                    metadata[key] = value
-        return metadata
+        cleaned_text = self._clean_text(value)
+        
+        return cleaned_text
+
+    def _extract_text_chunks(self) -> None:
+        """Extract text content chunks based on headings."""
+        current_section = "Introduction"
+        
+        for element in self.soup.find_all(["h2", "p"]):
+            if element.name == "h2":
+                current_section = self._clean_text(element.get_text().strip())
+            elif element.name == "p":
+                if text := self._clean_text(element.get_text().strip()):
+                    self.chunks.append({
+                        "metadata": {
+                            "page_title": self.page_title,
+                            **self.metadata,
+                            "heading": current_section
+                        },
+                        "content": text
+                    })
+
+    def _extract_table_chunks(self) -> None:
+        """Extract and process table content into chunks, replacing NaN values."""
+        current_section = "Introduction"
+        
+        for element in self.soup.find_all(["h2", "table"]):
+            if element.name == "h2":
+                current_section = self._clean_text(element.get_text().strip())
+            elif element.name == "table" and "wikitable" in element.get("class", []):
+                try:
+                    # Parse the table into a DataFrame
+                    table_data = pd.read_html(str(element))[0]
+                    
+                    # Replace NaN values with a placeholder
+                    table_data = table_data.fillna("Unknown")  # Replace NaN with "Unknown" or any placeholder
+                    
+                    # Convert the cleaned DataFrame to a list of dictionaries
+                    table_dict = table_data.to_dict(orient="records")
+                    
+                    # Append to chunks with metadata
+                    self.chunks.append({
+                        "metadata": {
+                            "page_title": self.page_title,
+                            # **self.metadata,
+                            "heading": current_section
+                        },
+                        "content": table_dict
+                    })
+                except ValueError:
+                    continue
 
 
-    def parse_html_content(self):
+    def process_page(self) -> List[Dict]:
         """
-        Convert the cleaned wikitext to HTML using the MediaWiki parser.
+        Process the Wikipedia page and return structured chunks.
+        
+        Returns:
+            List[Dict]: List of processed content chunks with metadata
         """
+        self.fetch_wikitext()
+        self.clean_wikitext()
+        
         params = {
             "action": "parse",
             "format": "json",
@@ -157,80 +175,24 @@ class WikipediaPageProcessor:
             "prop": "text",
             "disableeditsection": "true",
         }
-        response = requests.get(self.WIKIPEDIA_API_URL, params=params)
+        
+        response = requests.get(API_URL, params=params)
         response.raise_for_status()
-        data = response.json()
-        html_content = data["parse"]["text"]["*"]
+        
+        html_content = response.json()["parse"]["text"]["*"]
         self.soup = BeautifulSoup(html_content, "html.parser")
+        
+        self._extract_text_chunks()
+        self._extract_table_chunks()
+        
+        return self.chunks
 
-    def extract_text_chunks(self):
+    def save_chunks(self, output_file: str) -> None:
         """
-        Extract text chunks based on headings and add them to self.chunks.
+        Save processed chunks to a JSON file.
+        
+        Args:
+            output_file (str): Path to output JSON file
         """
-        current_section = "Introduction"  # Default section for text before first heading
-        for element in self.soup.find_all(["h2", "p"]):
-            if element.name == "h2":
-                heading_text = element.get_text().strip()
-                current_section = re.sub(r"\[.*?\]", "", heading_text)
-            elif element.name == "p":
-                text = element.get_text().strip()
-                text = re.sub(r"\[.*?\]", "", text)
-                if text:  # Only add non-empty paragraphs
-                    chunk = {
-                        "metadata": {
-                            "page_title": self.page_title,
-                            **self.metadata,  # Include all metadata
-                            "heading": current_section
-                        },
-                        "content": text
-                    }
-                    self.chunks.append(chunk)
-
-    def extract_table_chunks(self):
-        """
-        Extract tables from the HTML content and add them as chunks.
-        """
-        current_heading = "Introduction"
-        for element in self.soup.find_all(["h2", "table"]):
-            if element.name == "h2":
-                heading_text = element.get_text().strip()
-                current_heading = re.sub(r"\[.*?\]", "", heading_text)
-            elif element.name == "table" and "wikitable" in element.get("class", []):
-                try:
-                    df = pd.read_html(str(element))[0]
-                    chunk = {
-                        "metadata": {
-                            "heading": current_heading,
-                            "page_title": self.page_title,
-                            **self.metadata  # Include all metadata
-                        },
-                        "content": df.to_dict(orient="records")
-                    }
-                    self.chunks.append(chunk)
-                except ValueError:
-                    continue
-
-    def create_chunks(self):
-        """
-        Create all chunks with proper metadata.
-        """
-        self.parse_html_content()
-        self.extract_text_chunks()
-        self.extract_table_chunks()
-
-    def save_chunks(self, output_file):
-        """
-        Save chunks to a file.
-        """
-        import json
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(self.chunks, f, ensure_ascii=False, indent=4)
-
-    def print_chunks(self):
-        """
-        Print the extracted chunks for verification.
-        """
-        for i, chunk in enumerate(self.chunks):
-            print(f"\nChunk {i + 1}:")
-            print("Metadata:", chunk["metadata"])
-            print("Content:", chunk["content"][:200] + "..." if isinstance(chunk["content"], str) else chunk["content"])
