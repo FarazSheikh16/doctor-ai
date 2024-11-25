@@ -42,4 +42,4 @@ To set up your development environment using Conda, follow these steps:
 ## Ingestion
 To run the injestion module use the below command:
 
-     python process_injestion.py
+     python main.py

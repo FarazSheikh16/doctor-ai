@@ -2,9 +2,9 @@ import requests
 import re
 from bs4 import BeautifulSoup
 import pandas as pd
-from typing import Dict, List, Union, Optional
+from typing import Dict, List, Optional
 import json
-from src.constants import API_URL
+from src.constants import API_URL, CLEAN_TEXT_PATTERNS
 
 class WikipediaPageProcessor:
     """Process Wikipedia pages to extract structured content and metadata."""
@@ -35,37 +35,14 @@ class WikipediaPageProcessor:
         if not text:
             return ""
         
-        # Remove references
-        text = re.sub(r'<ref.*?</ref>', '', text, flags=re.DOTALL)
+        for pattern_dict in CLEAN_TEXT_PATTERNS:
+            pattern = pattern_dict["pattern"]
+            replacement = pattern_dict["replacement"]
+            flags = pattern_dict.get("flags", re.DOTALL)
+            text = re.sub(pattern, replacement, text, flags=flags)
         
-        # Remove HTML comments
-        text = re.sub(r'<!--.*?-->', '', text)
-        
-        # Extract text from wiki links [[link|text]] -> text or [[text]] -> text
-        text = re.sub(r'\[\[(?:[^|\]]*\|)?([^\]]+)\]\]', r'\1', text)
-        
-        # Remove templates
-        text = re.sub(r'\{\{.*?\}\}', '', text, flags=re.DOTALL)
-        
-        # Remove file references
-        text = re.sub(r'\[\[File:.*?\]\]', '', text, flags=re.DOTALL)
-        
-        # Remove numbered references [1], [2], etc.
-        text = re.sub(r'\[\d+\]', '', text)
-        
-        # Remove HTML tags
-        text = re.sub(r'<[^>]+>', '', text)
-        
-        # Remove bold/italic markers
-        text = re.sub(r"'{2,}", '', text)
-        
-        # Remove list markers
-        text = re.sub(r'^\s*[\*\#]\s*', '', text, flags=re.MULTILINE)
-        
-        # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text.strip())
-        
-        return text
+        return text.strip()
+
 
     def fetch_wikitext(self) -> None:
         """Fetch the wikitext content of the Wikipedia page using MediaWiki API."""
@@ -83,37 +60,13 @@ class WikipediaPageProcessor:
         
         data = response.json()
         pages = data["query"]["pages"]
-        self.wikitext = next(iter(pages.values()))["revisions"][0]["slots"]["main"]["*"]
-        # self._parse_infobox()
-
-    def clean_wikitext(self) -> None:
-        """Clean the wikitext by removing unwanted elements."""
-        if not self.wikitext:
-            return
-        # Clean the main text
-        self.wikitext = self._clean_text(self.wikitext)
+        self.wikitext = next(iter(pages.values()))["revisions"][0]["slots"]["main"]["*"]       
+    
+    def _extract_content_chunks(self) -> None:
+        """Extract text content chunks based on headings as well as extract and process table content into chunks, replacing NaN values."""
         
-
-    def _clean_wiki_value(self, value: str, field_type: str) -> Union[str, List[str]]:
-        """
-        Clean wiki value and format based on field type.
-        
-        Args:
-            value (str): Raw wiki value to clean
-            field_type (str): Type of field being cleaned ('synonyms' or 'symptoms')
-                
-        Returns:
-            Union[str, List[str]]: Cleaned value, either as string or list for synonyms
-        """
-        cleaned_text = self._clean_text(value)
-        
-        return cleaned_text
-
-    def _extract_text_chunks(self) -> None:
-        """Extract text content chunks based on headings."""
         current_section = "Introduction"
-        
-        for element in self.soup.find_all(["h2", "p"]):
+        for element in self.soup.find_all(["h2", "p", "table"]):
             if element.name == "h2":
                 current_section = self._clean_text(element.get_text().strip())
             elif element.name == "p":
@@ -126,38 +79,21 @@ class WikipediaPageProcessor:
                         },
                         "content": text
                     })
-
-    def _extract_table_chunks(self) -> None:
-        """Extract and process table content into chunks, replacing NaN values."""
-        current_section = "Introduction"
-        
-        for element in self.soup.find_all(["h2", "table"]):
-            if element.name == "h2":
-                current_section = self._clean_text(element.get_text().strip())
+            
             elif element.name == "table" and "wikitable" in element.get("class", []):
                 try:
-                    # Parse the table into a DataFrame
-                    table_data = pd.read_html(str(element))[0]
-                    
-                    # Replace NaN values with a placeholder
-                    table_data = table_data.fillna("Unknown")  # Replace NaN with "Unknown" or any placeholder
-                    
-                    # Convert the cleaned DataFrame to a list of dictionaries
-                    table_dict = table_data.to_dict(orient="records")
-                    
-                    # Append to chunks with metadata
+                    table_data = pd.read_html(str(element))[0].fillna("Unknown").to_dict(orient="records")
                     self.chunks.append({
                         "metadata": {
                             "page_title": self.page_title,
-                            # **self.metadata,
+                            **self.metadata,
                             "heading": current_section
                         },
-                        "content": table_dict
+                        "content": table_data
                     })
                 except ValueError:
                     continue
-
-
+    
     def process_page(self) -> List[Dict]:
         """
         Process the Wikipedia page and return structured chunks.
@@ -165,9 +101,22 @@ class WikipediaPageProcessor:
         Returns:
             List[Dict]: List of processed content chunks with metadata
         """
-        self.fetch_wikitext()
-        self.clean_wikitext()
+        params = {
+            "action": "query",
+            "format": "json",
+            "prop": "revisions",
+            "titles": self.page_title,
+            "rvslots": "main",
+            "rvprop": "content"
+        }
+        response = requests.get(API_URL, params=params)
+        response.raise_for_status()
+        data = response.json()
+        pages = data["query"]["pages"]
+        self.wikitext = next(iter(pages.values()))["revisions"][0]["slots"]["main"]["*"]
+        self.wikitext = self._clean_text(self.wikitext)
         
+        # Fetch HTML content
         params = {
             "action": "parse",
             "format": "json",
@@ -175,16 +124,12 @@ class WikipediaPageProcessor:
             "prop": "text",
             "disableeditsection": "true",
         }
-        
         response = requests.get(API_URL, params=params)
         response.raise_for_status()
-        
         html_content = response.json()["parse"]["text"]["*"]
         self.soup = BeautifulSoup(html_content, "html.parser")
         
-        self._extract_text_chunks()
-        self._extract_table_chunks()
-        
+        self._extract_content_chunks()
         return self.chunks
 
     def save_chunks(self, output_file: str) -> None:

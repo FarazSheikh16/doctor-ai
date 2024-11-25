@@ -1,38 +1,32 @@
-from src.wiki import WikipediaPageProcessor
-from src.qdrant_handler import QdrantManager
-from src.constants import config_path, cancer_types
+import argparse
+from src.ingest import ingest_multiple_wikipedia_pages_to_qdrant
+from src.search import search_documents, log_search_results
+from src.bot import run_bot
+from src.constants import CONFIG_PATH, CANCER_TYPES
 from src.utils import setup_logger
 
 logger = setup_logger()
 
-def ingest_multiple_wikipedia_pages_to_qdrant(page_titles: list, config_path: str):
-    # Step 1: Initialize the QdrantManager with the configuration
-    qdrant_manager = QdrantManager(config_path)
-    logger.info("Qdrant Connection Establihsed")
+def main():
+    parser = argparse.ArgumentParser(description='Medical Information System')
+    parser.add_argument('--ingest', action='store_true', help='Ingest Wikipedia data into Qdrant.')
+    parser.add_argument('--search', type=str, help='Search for a query in Qdrant.')
+    parser.add_argument('--interactive', action='store_true', help='Run the bot interactively.')
+    parser.add_argument('--query', type=str, help='Run a single query in the bot.')
 
-    # Step 2: Prepare lists to hold all documents and metadata across all pages
-    all_documents = []
-    all_metadata = []
+    args = parser.parse_args()
 
-    # Step 3: Loop through each page title and process it
-    for page_title in page_titles:
-        logger.info(f"Processing page: {page_title}")
-        processor = WikipediaPageProcessor(page_title)
-        chunks = processor.process_page()  # This returns a list of chunks with metadata
+    if args.ingest:
+        logger.info("Starting ingestion process...")
+        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES, CONFIG_PATH)
+    elif args.search:
+        logger.info(f"Performing search for query: {args.search}")
+        results = search_documents(query_text=args.search)
+        log_search_results(results)
+    elif args.interactive or args.query:
+        run_bot(config_path=CONFIG_PATH, interactive=args.interactive, query=args.query)
+    else:
+        logger.error("Please specify an action: --ingest, --search, --interactive, or --query.")
 
-        # Step 4: Prepare the documents and metadata for ingestion
-        for chunk in chunks:
-            content = chunk["content"]
-            meta = chunk["metadata"]
-            
-            # Append the content and metadata to the global lists
-            all_documents.append(content)  
-            all_metadata.append(meta)  
-
-    # Step 5: Ingest all documents and metadata into Qdrant
-    qdrant_manager.ingest_chunks(all_documents, all_metadata)
-    logger.info("Ingestion completed for all pages.")
-
-# Usage:
-page_titles = cancer_types
-ingest_multiple_wikipedia_pages_to_qdrant(page_titles, config_path)
+if __name__ == "__main__":
+    main()
