@@ -1,0 +1,57 @@
+import streamlit as st
+import requests
+
+# FastAPI endpoint URL
+API_URL = "http://localhost:8000/generate"
+
+# Set up Streamlit page
+st.set_page_config(page_title="Medical Chatbot", page_icon="🤖", layout="centered")
+st.title("Medical Chatbot 🤖")
+st.write("Ask me anything about medical information, and I'll provide a response based on our knowledge base.")
+
+# Chat history storage
+if "chat_history" not in st.session_state:
+    st.session_state["chat_history"] = []
+
+# User input area
+with st.form(key="chat_form", clear_on_submit=True):
+    user_query = st.text_input("Enter your question:")
+    submit_button = st.form_submit_button("Submit")
+
+# When the user submits a query
+if submit_button and user_query.strip():
+    # Append user query to chat history
+    st.session_state.chat_history.append({"role": "user", "message": user_query})
+
+    # Send the query to the FastAPI backend
+    try:
+        response = requests.post(API_URL, json={"query": user_query, "num_results": 5})
+        if response.status_code == 200:
+            bot_response = response.json().get("response", "Sorry, I couldn't generate a response.")
+        else:
+            bot_response = f"Error: {response.json().get('detail', 'Something went wrong.')}"
+    except Exception as e:
+        bot_response = f"Error: {str(e)}"
+
+    # Append bot response to chat history
+    st.session_state.chat_history.append({"role": "bot", "message": bot_response})
+
+# Display chat history
+st.divider()  # Adds a visual divider between the chat input and history
+st.header("Chat History")
+for entry in st.session_state.chat_history:
+    if entry["role"] == "user":
+        st.markdown(f"**You:** {entry['message']}")
+    elif entry["role"] == "bot":
+        st.markdown(f"**Bot:** {entry['message']}")
+
+# Provide feedback or clear option
+st.divider()
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Clear Chat"):
+        st.session_state.chat_history = []
+
+with col2:
+    st.write("Feedback? Let us know!")

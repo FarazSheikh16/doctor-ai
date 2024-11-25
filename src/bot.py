@@ -1,5 +1,6 @@
 from src.generator import RAGModule
 from src.utils import setup_logger
+from typing import Dict
 
 logger = setup_logger()
 
@@ -20,7 +21,7 @@ def log_result(result: dict):
         logger.info(f"   Relevance Score: {source['score']:.3f}")
     logger.info("-" * 80)
 
-def run_bot(config_path: str, interactive: bool = False, query: str = None):
+def run_bot(config_path: str, interactive: bool = False, query: str = None) -> Dict:
     """
     Run the bot in interactive mode or with a single query.
     
@@ -28,20 +29,45 @@ def run_bot(config_path: str, interactive: bool = False, query: str = None):
         config_path (str): Path to the configuration file.
         interactive (bool): Whether to run in interactive mode.
         query (str, optional): A single query to process.
+        
+    Returns:
+        Dict: Contains 'response' and 'sources' keys
     """
-    rag = RAGModule(config_path)
+    try:
+        rag = RAGModule(config_path)
 
-    if interactive:
-        logger.info("Starting interactive mode...")
-        logger.info("Enter your questions and type 'quit' to exit.")
-        while True:
-            user_query = input("\nEnter your medical question: ")
-            if user_query.lower() == 'quit':
-                logger.info("Exiting interactive mode.")
-                break
-            result = rag.get_response(query=user_query)
-            log_result(result)
-    elif query:
-        logger.info(f"Processing single query: {query}")
-        result = rag.get_response(query=query, num_results=10)
-        log_result(result)
+        if interactive:
+            logger.info("Starting interactive mode...")
+            logger.info("Enter your questions and type 'quit' to exit.")
+            while True:
+                user_query = input("\nEnter your medical question: ")
+                if user_query.lower() == 'quit':
+                    logger.info("Exiting interactive mode.")
+                    break
+                result = rag.get_response(query=user_query)
+                log_result(result)
+                
+        elif query:
+            logger.info(f"Processing single query: {query}")
+            result = rag.get_response(query=query, num_results=10)
+            logger.info(f"Result type: {type(result)}")
+            
+            # Ensure result is properly formatted
+            if isinstance(result, dict):
+                return {
+                    "response": result.get("response", ""),
+                    "sources": result.get("sources", [])
+                }
+            else:
+                # If result is not a dict, try to create proper structure
+                return {
+                    "response": str(result),
+                    "sources": []
+                }
+                
+    except Exception as e:
+        logger.error(f"Error in run_bot: {e}")
+        return {
+            "response": f"Error processing query: {str(e)}",
+            "sources": []
+        }
