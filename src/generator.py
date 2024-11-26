@@ -40,18 +40,21 @@ class RAGModule:
 
     def _create_prompt(self, query: str, context: str) -> str:
         """
-        Create a prompt for the language model, focusing solely on medical context.
+        Create a specialized prompt for an oncology-focused AI assistant,
+        emphasizing cancer-related medical expertise and patient communication.
         """
-        return f"""You are a medical assistant tasked with answering questions based strictly on the provided context.
-    If the answer cannot be derived from the context, respond: "The information provided does not contain enough details to answer the question."
-    
-    Question: {query}
-
-    Context:
-    {context}
-
-    Answer strictly based on the provided context."""
-
+        return f"""\
+Context is below.
+-------------------------
+{context}
+-------------------------
+Given the context information and not prior knowledge\
+answer the query asking about the question related to the cancer.
+Please provide your answer about it in way like a specialist cancer doctor would reply.\
+Strickly use the context for answering the user query.
+Query :{query}
+Answer:\
+        """
 
     def _generate_response_with_ollama(self, prompt: str) -> str:
         """Generate response using Ollama."""
@@ -61,7 +64,7 @@ class RAGModule:
                 "prompt": prompt,
                 "stream": False,
                 "temperature": self.llm_config['temperature'],
-                # "top_p": self.llm_config['top_p']
+                "max_tokens": self.llm_config['max_tokens']
             }
             
             response = requests.post(

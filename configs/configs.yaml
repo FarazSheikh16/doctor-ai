@@ -15,11 +15,11 @@ logging:
   log_level: "INFO"
 
 llm:
-  model_name: "phi"
+  model_name: "llama3.2"
   temperature: 0.1
-  # top_p: 3
   max_tokens: 512
   api_url: "http://localhost:11434/api/generate"
+  system_prompt: ""
 
 search:
   default_limit: 5

@@ -2,7 +2,7 @@ import yaml
 import sys
 from loguru import logger
 
-def load_config(config_path: str):
+def load_config(config_path: str) -> dict:
     """
     Loads the configuration from a YAML file.
 
@@ -36,8 +36,6 @@ def setup_logger(log_file: str = "app.log", level: str = "INFO"):
     logger.add(sys.stdout, level=level)  # Log to stdout (console)
     logger.add(log_file, level=level, rotation="1 week", compression="zip")  # Log to file with rotation
     
-    return logger  # Default logger
+    return logger  
 
-# Usage: 
-# import utils
-# utils.setup_logger()
+

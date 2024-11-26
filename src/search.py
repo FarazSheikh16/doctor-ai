@@ -3,7 +3,8 @@ from src.utils import setup_logger
 from src.constants import CONFIG_PATH
 logger = setup_logger()
 
-def search_documents(query_text: str, filter_conditions: dict = None, limit: int = 5):
+# qdrant_manager = QdrantManager(CONFIG_PATH)
+def search_documents(query_text: str, filter_conditions: dict = None, limit: int = 5) -> list:
     """
     Search for documents in Qdrant based on a query text.
     
@@ -30,7 +31,7 @@ def search_documents(query_text: str, filter_conditions: dict = None, limit: int
         logger.error(f"Error during search: {e}")
         raise
 
-def log_search_results(results, query_type="Search"):
+def log_search_results(results, query_type="Search") -> None:
     """
     Helper function to log search results in a formatted way.
     

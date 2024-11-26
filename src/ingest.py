@@ -5,7 +5,7 @@ from src.constants import CONFIG_PATH
 
 logger = setup_logger()
 
-def ingest_multiple_wikipedia_pages_to_qdrant(page_titles: list, config_path: str):
+def ingest_multiple_wikipedia_pages_to_qdrant(page_titles: list, config_path: str) -> None:
     """
     Ingests multiple Wikipedia pages into Qdrant.
     

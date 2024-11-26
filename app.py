@@ -27,14 +27,18 @@ if submit_button and user_query.strip():
     try:
         response = requests.post(API_URL, json={"query": user_query, "num_results": 5})
         if response.status_code == 200:
-            bot_response = response.json().get("response", "Sorry, I couldn't generate a response.")
+            api_response = response.json()
+            bot_response = api_response.get("response", "Sorry, I couldn't generate a response.")
+            sources = api_response.get("sources", [])
         else:
             bot_response = f"Error: {response.json().get('detail', 'Something went wrong.')}"
+            sources = []
     except Exception as e:
         bot_response = f"Error: {str(e)}"
+        sources = []
 
-    # Append bot response to chat history
-    st.session_state.chat_history.append({"role": "bot", "message": bot_response})
+    # Append bot response and sources to chat history
+    st.session_state.chat_history.append({"role": "bot", "message": bot_response, "sources": sources})
 
 # Display chat history
 st.divider()  # Adds a visual divider between the chat input and history
@@ -44,6 +48,10 @@ for entry in st.session_state.chat_history:
         st.markdown(f"**You:** {entry['message']}")
     elif entry["role"] == "bot":
         st.markdown(f"**Bot:** {entry['message']}")
+        if entry.get("sources"):
+            st.markdown("**Sources:**")
+            for source in entry["sources"]:
+                st.markdown(f"- {source}")
 
 # Provide feedback or clear option
 st.divider()

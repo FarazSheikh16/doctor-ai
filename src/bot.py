@@ -4,7 +4,7 @@ from typing import Dict
 
 logger = setup_logger()
 
-def log_result(result: dict):
+def log_result(result: dict) -> None:
     """
     Log RAG results in a formatted way.
     
