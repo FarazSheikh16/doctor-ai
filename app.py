@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # FastAPI endpoint URL
-API_URL = "http://localhost:8000/generate"
+API_URL = "http://app:8000/generate"
 
 # Set up Streamlit page
 st.set_page_config(page_title="Medical Chatbot", page_icon="🤖", layout="centered")

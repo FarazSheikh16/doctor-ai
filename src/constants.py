@@ -1,9 +1,13 @@
 import re
+import os
 from src.utils import load_config
 
 CONFIG_PATH = "configs/configs.yaml"
 CONFIG = load_config(CONFIG_PATH)
 API_URL = CONFIG['wikipedia_api']['base_url']
+# API endpoint configuration
+API_HOST = os.getenv('API_HOST', 'localhost')
+API_PORT = os.getenv('API_PORT', '8000')
 
 CANCER_TYPES = [
    "Basal-cell carcinoma", "Leiomyosarcoma", "Gastrinoma",
