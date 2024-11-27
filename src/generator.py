@@ -2,7 +2,6 @@ from src.qdrant_handler import QdrantManager
 from src.utils import setup_logger, load_config
 from typing import List, Dict, Optional
 import requests
-from pathlib import Path
 
 class RAGModule:
     def __init__(self, config_path: str):

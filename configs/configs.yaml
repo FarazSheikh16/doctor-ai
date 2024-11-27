@@ -11,7 +11,7 @@ wikipedia_api:
   base_url: "https://en.wikipedia.org/w/api.php"
 
 # Update to use the service name instead of localhost
-api_url: "http://app:8000/api/generate"
+fast_api_url: "http://app:8000/api/generate"
 
 logging:
   log_file: "app.log"

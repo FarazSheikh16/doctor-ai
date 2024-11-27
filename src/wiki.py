@@ -42,25 +42,7 @@ class WikipediaPageProcessor:
             text = re.sub(pattern, replacement, text, flags=flags)
         
         return text.strip()
-
-
-    def fetch_wikitext(self) -> None:
-        """Fetch the wikitext content of the Wikipedia page using MediaWiki API."""
-        params = {
-            "action": "query",
-            "format": "json",
-            "prop": "revisions",
-            "titles": self.page_title,
-            "rvslots": "main",
-            "rvprop": "content"
-        }
-        
-        response = requests.get(API_URL, params=params)
-        response.raise_for_status()
-        
-        data = response.json()
-        pages = data["query"]["pages"]
-        self.wikitext = next(iter(pages.values()))["revisions"][0]["slots"]["main"]["*"]       
+      
     
     def _extract_content_chunks(self) -> None:
         """Extract text content chunks based on headings as well as extract and process table content into chunks, replacing NaN values."""

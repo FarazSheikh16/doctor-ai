@@ -22,7 +22,7 @@ class QdrantManager:
         self.__connect()
         self.get_or_create_collection()
 
-    def _init_embedding_model(self):
+    def _init_embedding_model(self) -> None:
         """
         Initialize the embedding model.
         """
@@ -50,7 +50,7 @@ class QdrantManager:
             self.logger.error(f"Embedding generation error: {e}")
             raise
 
-    def __connect(self):
+    def __connect(self) -> None:
         """
         Connecting with the Qdrant Client with error handling
         """
@@ -68,7 +68,7 @@ class QdrantManager:
         hash_content = str(content) + str(metadata)
         return hashlib.md5(hash_content.encode('utf-8')).hexdigest()
 
-    def get_or_create_collection(self):
+    def get_or_create_collection(self) -> None:
         """
         Check if the collection exists in Qdrant. If not, create it.
         """
@@ -144,7 +144,7 @@ class QdrantManager:
             self.logger.error(f"Error ingesting chunks into Qdrant: {e}")
             raise
 
-    def search(self, text: str, filter_conditions: Optional[Dict] = None, limit: int = 5):
+    def search(self, text: str, filter_conditions: Optional[Dict] = None, limit: int = 5) -> list:
         """
         Search for similar documents with optional filtering.
         
@@ -179,8 +179,8 @@ class QdrantManager:
                 query_vector=query_vector.tolist(),
                 query_filter=query_filter,
                 limit=limit,
-                with_payload=True,  # Ensure we get the full payload
-                score_threshold=0.0  # You can adjust this threshold if needed
+                with_payload=True, 
+                score_threshold=0.0  
             )
 
             # Extract metadata, text content, and score
