@@ -75,17 +75,18 @@ class RAGModule:
             raise
 
     def get_response(
-        self, 
-        query: str, 
-        filter_conditions: Optional[Dict] = None, 
-        num_results: Optional[int] = None
+    self, 
+    query: str, 
+    conversation_history: Optional[List[Dict]] = None, 
+    filter_conditions: Optional[Dict] = None, 
+    num_results: Optional[int] = None
     ) -> Dict:
-        """Get response using RAG approach."""
+        """Get response using RAG approach with conversation history."""
         try:
             # Use default limit from config if num_results not specified
             if num_results is None:
                 num_results = self.search_config['default_limit']
-                
+            
             # Step 1: Search relevant documents
             self.logger.info(f"Searching for documents related to: {query}")
             search_results = self.qdrant_manager.search(
@@ -100,18 +101,23 @@ class RAGModule:
                     'sources': [],
                     'relevant_results': 0
                 }
-            
-            # Step 2: Format context
+
+            # Step 2: Format context based on search results
             context = self._format_context(search_results)
+
+            # Step 3: Add previous conversation history (if available) to the context
+            if conversation_history:
+                conversation_context = "\n".join([f"{entry['role'].capitalize()}: {entry['message']}" for entry in conversation_history])
+                context = conversation_context + "\n\n" + context
             
-            # Step 3: Create prompt
+            # Step 4: Create prompt
             prompt = self._create_prompt(query, context)
-            
-            # Step 4: Generate response
+
+            # Step 5: Generate response
             self.logger.info("Generating response using LLM")
             response = self._generate_response_with_ollama(prompt)
             
-            # Step 5: Prepare source information
+            # Step 6: Prepare source information
             sources = [
                 {
                     'title': result['metadata'].get('page_title', 'Unknown'),

@@ -28,7 +28,15 @@ if submit_button and user_query.strip():
 
     # Send the query to the FastAPI backend
     try:
-        response = requests.post(api_config['generate_url'], json={"query": user_query, "num_results": 5})
+        # Prepare the conversation history in the expected format
+        conversation_history = [{"role": entry["role"], "message": entry["message"]} for entry in st.session_state.chat_history]
+
+        # Send the query and conversation history in the request payload
+        response = requests.post(
+            api_config['generate_url'],
+            json={"query": user_query, "conversation_history": conversation_history, "num_results": 5}
+        )
+
         if response.status_code == 200:
             api_response = response.json()
             bot_response = api_response.get("response", "Sorry, I couldn't generate a response.")

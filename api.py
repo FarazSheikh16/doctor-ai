@@ -5,6 +5,7 @@ from src.search import search_documents
 from src.bot import run_bot
 from src.constants import CONFIG_PATH, CANCER_TYPES
 from src.utils import setup_logger
+from typing import List, Optional
 
 logger = setup_logger()
 
@@ -18,7 +19,8 @@ class SearchQuery(BaseModel):
 
 class BotQuery(BaseModel):
     query: str
-    num_results: int = 10
+    conversation_history: Optional[List[dict]] = None
+    num_results: Optional[int] = 5  # Default to 5 if not provided
 
 @app.get("/")
 def root():
@@ -57,8 +59,9 @@ def generate_response(bot_query: BotQuery):
     """Endpoint to generate a response using the bot."""
     try:
         logger.info(f"Bot generation endpoint called with query: {bot_query.query}")
-        rag = run_bot(config_path=CONFIG_PATH, interactive=False, query=bot_query.query)
+        rag = run_bot(config_path=CONFIG_PATH, interactive=False, query=bot_query.query, conversation_history=bot_query.conversation_history)
         return {"response": rag["response"], "sources": rag["sources"]}
     except Exception as e:
         logger.error(f"Bot generation failed: {e}")
         raise HTTPException(status_code=500, detail="Response generation failed.")
+

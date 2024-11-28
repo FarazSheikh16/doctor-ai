@@ -1,6 +1,6 @@
 from src.generator import RAGModule
 from src.utils import setup_logger
-from typing import Dict
+from typing import Dict, List
 
 logger = setup_logger()
 
@@ -21,7 +21,7 @@ def log_result(result: dict) -> None:
         logger.info(f"   Relevance Score: {source['score']:.3f}")
     logger.info("-" * 80)
 
-def run_bot(config_path: str, interactive: bool = False, query: str = None) -> Dict:
+def run_bot(config_path: str, interactive: bool = False, query: str = None, conversation_history: List[Dict] = None) -> Dict:
     """
     Run the bot in interactive mode or with a single query.
     
@@ -29,6 +29,7 @@ def run_bot(config_path: str, interactive: bool = False, query: str = None) -> D
         config_path (str): Path to the configuration file.
         interactive (bool): Whether to run in interactive mode.
         query (str, optional): A single query to process.
+        conversation_history (List[Dict], optional): The history of the conversation for context.
         
     Returns:
         Dict: Contains 'response' and 'sources' keys
@@ -48,8 +49,9 @@ def run_bot(config_path: str, interactive: bool = False, query: str = None) -> D
                 log_result(result)
                 
         elif query:
+            # Include conversation history for context
             logger.info(f"Processing single query: {query}")
-            result = rag.get_response(query=query, num_results=10)
+            result = rag.get_response(query=query, conversation_history=conversation_history, num_results=10)
             logger.info(f"Result type: {type(result)}")
             
             # Ensure result is properly formatted
@@ -59,7 +61,6 @@ def run_bot(config_path: str, interactive: bool = False, query: str = None) -> D
                     "sources": result.get("sources", [])
                 }
             else:
-                # If result is not a dict, try to create proper structure
                 return {
                     "response": str(result),
                     "sources": []
