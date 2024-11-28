@@ -1,8 +1,11 @@
 import streamlit as st
 import requests
+from src.utils import load_config
+from src.constants import CONFIG_PATH
 
-# FastAPI endpoint URL
-API_URL = "http://app:8000/generate"
+
+config = load_config(CONFIG_PATH)
+api_config = config['api']
 
 # Set up Streamlit page
 st.set_page_config(page_title="Medical Chatbot", page_icon="🤖", layout="centered")
@@ -25,7 +28,7 @@ if submit_button and user_query.strip():
 
     # Send the query to the FastAPI backend
     try:
-        response = requests.post(API_URL, json={"query": user_query, "num_results": 5})
+        response = requests.post(api_config['generate_url'], json={"query": user_query, "num_results": 5})
         if response.status_code == 200:
             api_response = response.json()
             bot_response = api_response.get("response", "Sorry, I couldn't generate a response.")
@@ -63,3 +66,15 @@ with col1:
 
 with col2:
     st.write("Feedback? Let us know!")
+
+# Add "Ingest Data" button
+if st.button("Ingest Data"):
+    try:
+        # Call the FastAPI ingest endpoint
+        ingest_response = requests.post(api_config['ingest_url'])
+        if ingest_response.status_code == 200:
+            st.success("Data ingested successfully!")
+        else:
+            st.error(f"Failed to ingest data: {ingest_response.json().get('detail', 'Unknown error')}")
+    except Exception as e:
+        st.error(f"Error during ingestion: {str(e)}")

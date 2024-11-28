@@ -164,3 +164,4 @@ cython_debug/
 dataset/
 qdrant_storage/
 rough/
+ollama/

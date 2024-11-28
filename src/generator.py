@@ -42,18 +42,10 @@ class RAGModule:
         Create a specialized prompt for an oncology-focused AI assistant,
         emphasizing cancer-related medical expertise and patient communication.
         """
-        return f"""\
-Context is below.
--------------------------
-{context}
--------------------------
-Given the context information and not prior knowledge\
-answer the query asking about the question related to the cancer.
-Please provide your answer about it in way like a specialist cancer doctor would reply.\
-Strickly use the context for answering the user query.
-Query :{query}
-Answer:\
-        """
+        system_prompt = self.llm_config['system_prompt']
+        prompt = system_prompt.format(context=context, query=query)
+
+        return prompt
 
     def _generate_response_with_ollama(self, prompt: str) -> str:
         """Generate response using Ollama."""

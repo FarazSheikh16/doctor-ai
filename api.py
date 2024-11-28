@@ -31,7 +31,7 @@ def ingest_data():
     """Endpoint to ingest Wikipedia pages into Qdrant."""
     try:
         logger.info("Ingestion endpoint called.")
-        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES, CONFIG_PATH)
+        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES)
         return {"message": "Ingestion completed successfully."}
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")

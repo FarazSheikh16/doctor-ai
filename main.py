@@ -18,7 +18,7 @@ def main():
 
     if args.ingest:
         logger.info("Starting ingestion process...")
-        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES, CONFIG_PATH)
+        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES)
     elif args.search:
         logger.info(f"Performing search for query: {args.search}")
         results = search_documents(query_text=args.search)

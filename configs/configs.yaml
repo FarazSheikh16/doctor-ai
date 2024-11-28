@@ -10,8 +10,9 @@ qdrant:
 wikipedia_api:
   base_url: "https://en.wikipedia.org/w/api.php"
 
-# Update to use the service name instead of localhost
-fast_api_url: "http://app:8000/api/generate"
+api:
+  generate_url : "http://app:8000/generate"
+  ingest_url : "http://app:8000/ingest"
 
 logging:
   log_file: "app.log"
@@ -21,9 +22,17 @@ llm:
   model_name: "llama3.2"
   temperature: 0.1
   max_tokens: 512
-  # Use the service name and correct port
   api_url: "http://ollama:11434/api/generate"
-  system_prompt: ""
+  system_prompt: |
+    Context is below.
+    -------------------------
+    {context}
+    -------------------------
+    Given the context information and not prior knowledge, answer the query asking about the question related to cancer. Please provide your answer in a way like a specialist cancer doctor would reply. Strictly use the context for answering the user query.
+    Query: {query}
+    Answer:
+
+
 
 search:
   default_limit: 5

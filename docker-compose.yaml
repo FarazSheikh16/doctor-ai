@@ -1,20 +1,35 @@
-version: '3.8'
-
 services:
   app:
     build: .
     ports:
-      - "8000:8000"  # FastAPI
-      - "8501:8501"  # Streamlit
+      - "8000:8000"
+      - "8501:8501" 
     volumes:
       - .:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - OLLAMA_HOST=ollama
+      - QDRANT_HOST=qdrant
     depends_on:
-      ollama:
-        condition: service_started
-      qdrant:
-        condition: service_started
+      - ollama
+      - qdrant
+    networks:
+      - app_network
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - 11434:11434
+    volumes:
+      - ./ollama/ollama:/root/.ollama
+      - ./entrypoint.sh:/entrypoint.sh
+    container_name: ollama
+    pull_policy: if_not_present
+    tty: true
+    restart: always
+    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
+    networks:
+      - app_network
 
   qdrant:
     image: qdrant/qdrant:latest
@@ -23,21 +38,12 @@ services:
       - "6334:6334"
     volumes:
       - qdrant_data:/qdrant/storage
-
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11435:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
-    # Just start the Ollama service
-    command: serve
+    networks:
+      - app_network
 
 volumes:
   qdrant_data:
-  ollama_data:
+
+networks:
+  app_network:
+    driver: bridge
