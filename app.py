@@ -53,7 +53,7 @@ if submit_button and user_query.strip():
 
 # Display chat history
 st.divider()  # Adds a visual divider between the chat input and history
-st.header("Chat History")
+st.write("Chat History")
 for entry in st.session_state.chat_history:
     if entry["role"] == "user":
         st.markdown(f"**You:** {entry['message']}")
@@ -63,6 +63,32 @@ for entry in st.session_state.chat_history:
             st.markdown("**Sources:**")
             for source in entry["sources"]:
                 st.markdown(f"- {source}")
+
+# Add a session state variable for the text input
+if "ingest_titles_input" not in st.session_state:
+    st.session_state.ingest_titles_input = ""
+    
+# Add "Ingest Data" button
+st.divider()
+st.header("Ingestion")
+ingest_titles_input = st.text_area("Enter Wikipedia page titles (comma-separated):", height=100)
+
+if st.button("Ingest Data"):
+    if ingest_titles_input.strip():
+        titles = [title.strip() for title in ingest_titles_input.split(',')]
+        try:
+            # Send the list of titles to the FastAPI ingest endpoint
+            ingest_response = requests.post(api_config['ingest_url'], json={"titles": titles})
+
+            if ingest_response.status_code == 200:
+                st.success("Data ingested successfully!")
+                st.session_state["titles_input"] = ""
+            else:
+                st.error(f"Failed to ingest data: {ingest_response.json().get('detail', 'Unknown error')}")
+        except Exception as e:
+            st.error(f"Error during ingestion: {str(e)}")
+    else:
+        st.error("Please provide a list of titles to ingest.")
 
 # Provide feedback or clear option
 st.divider()
@@ -74,15 +100,3 @@ with col1:
 
 with col2:
     st.write("Feedback? Let us know!")
-
-# Add "Ingest Data" button
-if st.button("Ingest Data"):
-    try:
-        # Call the FastAPI ingest endpoint
-        ingest_response = requests.post(api_config['ingest_url'])
-        if ingest_response.status_code == 200:
-            st.success("Data ingested successfully!")
-        else:
-            st.error(f"Failed to ingest data: {ingest_response.json().get('detail', 'Unknown error')}")
-    except Exception as e:
-        st.error(f"Error during ingestion: {str(e)}")

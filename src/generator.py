@@ -29,7 +29,6 @@ class RAGModule:
             temperature=self.llm_config.get('temperature'),
             n_ctx = self.llm_config.get('n_ctx'),
             max_tokens=self.llm_config.get('max_tokens'),
-            # top_p=self.llm_config.get('top_p', 1),
             callback_manager=callback_manager,
             verbose=True
         )

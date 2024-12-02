@@ -13,6 +13,6 @@ Requests==2.32.3
 streamlit==1.40.1
 tqdm==4.66.5
 uvicorn==0.32.1
-# llama-cpp-python==0.2.77 --no-cache-dir --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124/
 llama-cpp-python==0.2.77
 langchain==0.3.7
+langchain-community==0.3.7

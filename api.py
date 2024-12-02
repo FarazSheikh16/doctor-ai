@@ -15,12 +15,18 @@ app = FastAPI(title="Medical Information API", description="API for Medical Info
 class SearchQuery(BaseModel):
     query: str
     filter_conditions: dict = None
-    limit: int = 5
+    limit: int 
 
 class BotQuery(BaseModel):
     query: str
     conversation_history: Optional[List[dict]] = None
-    num_results: Optional[int] = 5  # Default to 5 if not provided
+    num_results: Optional[int]
+
+class Titles(BaseModel):
+    titles: list
+
+class IngestRequest(BaseModel):
+    titles: list[str] 
 
 @app.get("/")
 def root():
@@ -29,11 +35,27 @@ def root():
     return {"message": "Medical Information API is running."}
 
 @app.post("/ingest")
-def ingest_data():
+def ingest_data(request: IngestRequest):
     """Endpoint to ingest Wikipedia pages into Qdrant."""
     try:
         logger.info("Ingestion endpoint called.")
-        ingest_multiple_wikipedia_pages_to_qdrant(CANCER_TYPES)
+        logger.info(request.titles)
+
+        ingest_multiple_wikipedia_pages_to_qdrant(request.titles)
+        return {"message": "Ingestion completed successfully."}
+    except Exception as e:
+        logger.error(f"Ingestion failed: {e}")
+        raise HTTPException(status_code=500, detail="Ingestion failed.")
+    
+@app.post("/ingest")
+def ingest_data(request: IngestRequest):
+    """Endpoint to ingest Wikipedia pages into Qdrant."""
+    try:
+        logger.info("Ingestion endpoint called.")
+        
+        # Pass the list of titles to the ingestion function
+        ingest_multiple_wikipedia_pages_to_qdrant(request.titles)
+        
         return {"message": "Ingestion completed successfully."}
     except Exception as e:
         logger.error(f"Ingestion failed: {e}")
