@@ -6,28 +6,12 @@ services:
       - "8501:8501" 
     volumes:
       - .:/app
+      - ./models:/app/models  # New volume for LLM models
     environment:
       - PYTHONUNBUFFERED=1
-      - OLLAMA_HOST=ollama
       - QDRANT_HOST=qdrant
     depends_on:
-      - ollama
       - qdrant
-    networks:
-      - app_network
-
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - 11434:11434
-    volumes:
-      - ./ollama/ollama:/root/.ollama
-      - ./entrypoint.sh:/entrypoint.sh
-    container_name: ollama
-    pull_policy: if_not_present
-    tty: true
-    restart: always
-    entrypoint: ["/usr/bin/bash", "/entrypoint.sh"]
     networks:
       - app_network
 

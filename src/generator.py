@@ -1,7 +1,10 @@
 from src.qdrant_handler import QdrantManager
 from src.utils import setup_logger, load_config
 from typing import List, Dict, Optional
-import requests
+from langchain_community.llms import LlamaCpp
+# from llama_cpp import Llama
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 class RAGModule:
     def __init__(self, config_path: str):
@@ -17,6 +20,60 @@ class RAGModule:
         self.llm_config = self.config['llm']
         self.search_config = self.config['search']
         
+        # Initialize callback manager for LlamaCpp
+        callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+        
+        # Initialize LlamaCpp model
+        self.llm = LlamaCpp(
+            model_path=self.llm_config['model_path'],
+            temperature=self.llm_config.get('temperature'),
+            n_ctx = self.llm_config.get('n_ctx'),
+            max_tokens=self.llm_config.get('max_tokens'),
+            # top_p=self.llm_config.get('top_p', 1),
+            callback_manager=callback_manager,
+            verbose=True
+        )
+
+    def _refine_query(self, query: str, conversation_history: Optional[List[Dict]] = None) -> str:
+        """
+        Refine the query if it's vague, using conversation history for context.
+        Returns original query if it's specific enough or refinement fails.
+        """
+        try:
+            # If no history, return original query
+            if not conversation_history:
+                return query
+
+            # Create refinement prompt
+            history_text = "\n".join([
+                f"{entry['role']}: {entry['message']}" 
+                for entry in conversation_history[-3:]  # Use last 3 messages for context
+            ])
+            
+            refinement_prompt = self.llm_config['refinement_prompt'].format(
+                context=history_text,
+                query=query
+            )
+            
+            # Use LlamaCpp for refinement
+            result = self.llm(refinement_prompt).strip()
+            
+            # Parse the response
+            if result.startswith("REFINED:"):
+                refined_query = result.replace("REFINED:", "").strip()
+                self.logger.info(f"Query refined from '{query}' to '{refined_query}'")
+                return refined_query
+            elif result.startswith("UNCHANGED:"):
+                self.logger.info("Query determined to be specific enough")
+                return query
+            else:
+                self.logger.warning("Unexpected refinement format, using original query")
+                return query
+                
+        except Exception as e:
+            self.logger.error(f"Error in query refinement: {e}")
+            return query  # Return original query if refinement fails
+
     def _format_context(self, search_results: List[Dict]) -> str:
         """Format search results into a context string."""
         context_parts = []
@@ -47,50 +104,34 @@ class RAGModule:
 
         return prompt
 
-    def _generate_response_with_ollama(self, prompt: str) -> str:
-        """Generate response using Ollama."""
+    def _generate_response_with_llama(self, prompt: str) -> str:
+        """Generate response using LlamaCpp."""
         try:
-            payload = {
-                "model": self.llm_config['model_name'],
-                "prompt": prompt,
-                "stream": False,
-                "temperature": self.llm_config['temperature'],
-                "max_tokens": self.llm_config['max_tokens']
-            }
-            
-            response = requests.post(
-                self.llm_config['api_url'], 
-                json=payload,
-                timeout=900 # 30 seconds timeout
-            )
-            response.raise_for_status()
-            
-            return response.json()['response']
-            
-        except requests.exceptions.RequestException as e:
-            self.logger.error(f"Error calling Ollama API: {e}")
-            raise
+            return self.llm(prompt)
         except Exception as e:
-            self.logger.error(f"Error generating response: {e}")
+            self.logger.error(f"Error generating response with LlamaCpp: {e}")
             raise
 
     def get_response(
-    self, 
-    query: str, 
-    conversation_history: Optional[List[Dict]] = None, 
-    filter_conditions: Optional[Dict] = None, 
-    num_results: Optional[int] = None
+        self, 
+        query: str, 
+        conversation_history: Optional[List[Dict]] = None, 
+        filter_conditions: Optional[Dict] = None, 
+        num_results: Optional[int] = None
     ) -> Dict:
         """Get response using RAG approach with conversation history."""
         try:
+            # Step 1: Refine the query if needed
+            refined_query = self._refine_query(query, conversation_history)
+            
             # Use default limit from config if num_results not specified
             if num_results is None:
                 num_results = self.search_config['default_limit']
             
-            # Step 1: Search relevant documents
-            self.logger.info(f"Searching for documents related to: {query}")
+            # Step 2: Search relevant documents with refined query
+            self.logger.info(f"Searching for documents related to: {refined_query}")
             search_results = self.qdrant_manager.search(
-                text=query,
+                text=refined_query,
                 filter_conditions=filter_conditions,
                 limit=num_results
             )
@@ -102,22 +143,25 @@ class RAGModule:
                     'relevant_results': 0
                 }
 
-            # Step 2: Format context based on search results
+            # Step 3: Format context based on search results
             context = self._format_context(search_results)
 
-            # Step 3: Add previous conversation history (if available) to the context
+            # Step 4: Add previous conversation history (if available) to the context
             if conversation_history:
-                conversation_context = "\n".join([f"{entry['role'].capitalize()}: {entry['message']}" for entry in conversation_history])
+                conversation_context = "\n".join([
+                    f"{entry['role'].capitalize()}: {entry['message']}" 
+                    for entry in conversation_history
+                ])
                 context = conversation_context + "\n\n" + context
             
-            # Step 4: Create prompt
-            prompt = self._create_prompt(query, context)
+            # Step 5: Create prompt
+            prompt = self._create_prompt(refined_query, context)
 
-            # Step 5: Generate response
-            self.logger.info("Generating response using LLM")
-            response = self._generate_response_with_ollama(prompt)
+            # Step 6: Generate response
+            self.logger.info("Generating response using LlamaCpp")
+            response = self._generate_response_with_llama(prompt)
             
-            # Step 6: Prepare source information
+            # Step 7: Prepare source information
             sources = [
                 {
                     'title': result['metadata'].get('page_title', 'Unknown'),

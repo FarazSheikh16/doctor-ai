@@ -23,3 +23,5 @@ rough/
 qdrant_storage/
 .vscode/
 ollama/
+models/
+app.2024-11-22_10-48-33_047964.log.zip

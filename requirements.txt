@@ -2,7 +2,6 @@ beautifulsoup4==4.12.3
 fastapi==0.115.5
 fastembed==0.4.2
 fitz==0.0.1.dev2
-langchain==0.3.8
 loguru==0.7.2
 ollama==0.4.1
 pandas==2.2.3
@@ -14,3 +13,6 @@ Requests==2.32.3
 streamlit==1.40.1
 tqdm==4.66.5
 uvicorn==0.32.1
+# llama-cpp-python==0.2.77 --no-cache-dir --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu124/
+llama-cpp-python==0.2.77
+langchain==0.3.7
