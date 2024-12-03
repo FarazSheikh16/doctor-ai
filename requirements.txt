@@ -3,7 +3,6 @@ fastapi==0.115.5
 fastembed==0.4.2
 fitz==0.0.1.dev2
 loguru==0.7.2
-ollama==0.4.1
 pandas==2.2.3
 pdfminer.six==20231228
 pydantic==2.10.1

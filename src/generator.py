@@ -2,11 +2,11 @@ from src.qdrant_handler import QdrantManager
 from src.utils import setup_logger, load_config
 from typing import List, Dict, Optional
 from langchain_community.llms import LlamaCpp
-# from llama_cpp import Llama
 from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 class RAGModule:
+    _llm_instance = None 
     def __init__(self, config_path: str):
         """
         Initialize RAG module with configurations.
@@ -19,19 +19,30 @@ class RAGModule:
         self.logger = setup_logger()
         self.llm_config = self.config['llm']
         self.search_config = self.config['search']
+
+    @property
+    def llm(self) -> LlamaCpp:
+        """
+        Property to access or create LLM instance using singleton pattern.
+        Returns:
+            LlamaCpp: Instance of the LLM
+        """
+        if not self.__class__._llm_instance:
+            # Initialize callback manager for LlamaCpp
+            callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+            
+            # Initialize LlamaCpp model
+            self.__class__._llm_instance = LlamaCpp(
+                model_path=self.llm_config['model_path'],
+                temperature=self.llm_config.get('temperature'),
+                n_ctx=self.llm_config.get('n_ctx'),
+                max_tokens=self.llm_config.get('max_tokens'),
+                callback_manager=callback_manager,
+                verbose=True
+            )
         
-        # Initialize callback manager for LlamaCpp
-        callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
-        
-        # Initialize LlamaCpp model
-        self.llm = LlamaCpp(
-            model_path=self.llm_config['model_path'],
-            temperature=self.llm_config.get('temperature'),
-            n_ctx = self.llm_config.get('n_ctx'),
-            max_tokens=self.llm_config.get('max_tokens'),
-            callback_manager=callback_manager,
-            verbose=True
-        )
+        return self.__class__._llm_instance
+
 
     def _refine_query(self, query: str, conversation_history: Optional[List[Dict]] = None) -> str:
         """
@@ -104,7 +115,7 @@ class RAGModule:
         return prompt
 
     def _generate_response_with_llama(self, prompt: str) -> str:
-        """Generate response using LlamaCpp."""
+        """Generate response using cached LlamaCpp instance."""
         try:
             return self.llm(prompt)
         except Exception as e:

@@ -19,10 +19,10 @@ logging:
   log_level: "INFO"
 
 llm:
-  model_path : "/app/models/capybarahermes-2.5-mistral-7b.Q4_K_M.gguf"
+  model_path : "/app/models/capybarahermes-2.5-mistral-7b.Q2_K.gguf"
   temperature: 0.1
-  max_tokens: 512
-  n_ctx: 3000
+  max_tokens: 250
+  n_ctx: 2000
   system_prompt: |
     <|im_start|>system
     You are an oncology specialist providing expert medical guidance. Your responses should be based solely on the provided context, not prior knowledge. Always maintain a professional, empathetic tone typical of an experienced cancer specialist.
@@ -37,21 +37,27 @@ llm:
 
   refinement_prompt: |
     <|im_start|>system
-    You are an oncology query specialist. Your role is to analyze conversation history and refine unclear queries into specific, actionable questions focused on cancer-related topics. Use the conversation context to clarify intent and improve query specificity.
+    You are a prompt engineer specialist. Your role is to analyze query and if is it clear or not too vague return don't refine it else use conversation history and refine vague queries into clear and context related, actionable questions. Use the conversation context to clarify intent and improve query specificity.
     
     Conversation History:
     {context}
     
     Rules:
     - If query needs refinement: respond with "REFINED:" followed by the clear, specific question
-    - If query is already specific: respond with "UNCHANGED:" followed by the original query
+    - If query is not too vague: respond with "UNCHANGED:" followed by the original query
     - Always maintain medical context and oncology focus
     - Consider previously mentioned symptoms, treatments, or conditions
+    Examples of vague queries are :
+    - What should I do ?
+    - Why is this happening ?
+    - What is it ?
+    and other like above
     <|im_end|>
     <|im_start|>user
     Query for refinement: {query}
     <|im_end|>
     <|im_start|>assistant
+
 
 search:
   default_limit: 5
