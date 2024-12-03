@@ -1,0 +1,27 @@
+# .dockerignore file contents:
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+*.log
+.git
+.gitignore
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+rough/
+.DS_Store
+**/.ipynb_checkpoints
+**/node_modules
+qdrant_storage/
+.vscode/
+ollama/
+models/
+app.2024-11-22_10-48-33_047964.log.zip

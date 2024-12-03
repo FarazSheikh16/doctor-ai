@@ -1,0 +1,59 @@
+qdrant:
+  # Use the service name as defined in docker-compose
+  url: "http://qdrant:6333"
+  collection_name: "cancer"
+  vector_size: 384
+  distance_metric: "Cosine"
+  dense_model: "sentence-transformers/all-MiniLM-L6-v2"
+  sparse_model: "prithivida/Splade_PP_en_v1"
+
+wikipedia_api:
+  base_url: "https://en.wikipedia.org/w/api.php"
+
+api:
+  generate_url : "http://app:8000/generate"
+  ingest_url : "http://app:8000/ingest"
+
+logging:
+  log_file: "app.log"
+  log_level: "INFO"
+
+llm:
+  model_path : "/app/models/capybarahermes-2.5-mistral-7b.Q2_K.gguf"
+  temperature: 0.1
+  max_tokens: 250
+  n_ctx: 2000
+  system_prompt: |
+    <|im_start|>system
+    You are an oncology specialist providing expert medical guidance. Your responses should be based solely on the provided context, not prior knowledge. Always maintain a professional, empathetic tone typical of an experienced cancer specialist.
+    
+    Context Information:
+    {context}
+    <|im_end|>
+    <|im_start|>user
+    {query}
+    <|im_end|>
+    <|im_start|>assistant
+   
+  refinement_prompt: |
+    <|im_start|>system
+    You are a prompt engineering specialist. Your role is to create a standalone, contextually complete question based on the provided query and conversation history. Use the conversation history to add relevant context, clarify intent, and ensure the question is specific and actionable.
+
+    Conversation History:
+    {context}
+
+    Rules:
+    - Always maintain a medical context.
+    - Include references to previously mentioned symptoms, treatments, or conditions if relevant.
+    - Do not include any commentary or explanations; output only the refined standalone question.
+    - Ensure the standalone question is clear, specific, and self-contained.
+
+    New question: {query}
+    <|im_end|>
+    <|im_start|>assistant
+
+
+
+search:
+  default_limit: 5
+  score_threshold: 0.65
