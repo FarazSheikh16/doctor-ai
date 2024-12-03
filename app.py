@@ -34,7 +34,7 @@ if submit_button and user_query.strip():
         # Send the query and conversation history in the request payload
         response = requests.post(
             api_config['generate_url'],
-            json={"query": user_query, "conversation_history": conversation_history, "num_results": 5}
+            json={"conversation_history": conversation_history, "query": user_query}
         )
 
         if response.status_code == 200:

@@ -20,7 +20,6 @@ class SearchQuery(BaseModel):
 class BotQuery(BaseModel):
     query: str
     conversation_history: Optional[List[dict]] = None
-    num_results: Optional[int]
 
 class Titles(BaseModel):
     titles: list
@@ -47,19 +46,6 @@ def ingest_data(request: IngestRequest):
         logger.error(f"Ingestion failed: {e}")
         raise HTTPException(status_code=500, detail="Ingestion failed.")
     
-@app.post("/ingest")
-def ingest_data(request: IngestRequest):
-    """Endpoint to ingest Wikipedia pages into Qdrant."""
-    try:
-        logger.info("Ingestion endpoint called.")
-        
-        # Pass the list of titles to the ingestion function
-        ingest_multiple_wikipedia_pages_to_qdrant(request.titles)
-        
-        return {"message": "Ingestion completed successfully."}
-    except Exception as e:
-        logger.error(f"Ingestion failed: {e}")
-        raise HTTPException(status_code=500, detail="Ingestion failed.")
 
 @app.post("/search")
 def search_data(search_query: SearchQuery):

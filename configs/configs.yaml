@@ -34,31 +34,26 @@ llm:
     {query}
     <|im_end|>
     <|im_start|>assistant
-
+   
   refinement_prompt: |
     <|im_start|>system
-    You are a prompt engineer specialist. Your role is to analyze query and if is it clear or not too vague return don't refine it else use conversation history and refine vague queries into clear and context related, actionable questions. Use the conversation context to clarify intent and improve query specificity.
-    
+    You are a prompt engineering specialist. Your role is to create a standalone, contextually complete question based on the provided query and conversation history. Use the conversation history to add relevant context, clarify intent, and ensure the question is specific and actionable.
+
     Conversation History:
     {context}
-    
+
     Rules:
-    - If query needs refinement: respond with "REFINED:" followed by the clear, specific question
-    - If query is not too vague: respond with "UNCHANGED:" followed by the original query
-    - Always maintain medical context and oncology focus
-    - Consider previously mentioned symptoms, treatments, or conditions
-    Examples of vague queries are :
-    - What should I do ?
-    - Why is this happening ?
-    - What is it ?
-    and other like above
-    <|im_end|>
-    <|im_start|>user
-    Query for refinement: {query}
+    - Always maintain a medical context.
+    - Include references to previously mentioned symptoms, treatments, or conditions if relevant.
+    - Do not include any commentary or explanations; output only the refined standalone question.
+    - Ensure the standalone question is clear, specific, and self-contained.
+
+    New question: {query}
     <|im_end|>
     <|im_start|>assistant
 
 
+
 search:
   default_limit: 5
-  score_threshold: 0.5
+  score_threshold: 0.65

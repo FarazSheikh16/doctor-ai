@@ -51,7 +51,7 @@ def run_bot(config_path: str, interactive: bool = False, query: str = None, conv
         elif query:
             # Include conversation history for context
             logger.info(f"Processing single query: {query}")
-            result = rag.get_response(query=query, conversation_history=conversation_history, num_results=10)
+            result = rag.get_response(query=query, conversation_history=conversation_history)
             logger.info(f"Result type: {type(result)}")
             
             # Ensure result is properly formatted
